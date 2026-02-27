@@ -64,4 +64,4 @@ This repository is maintained as production-grade application code:
 
 ## License
 
-MIT
+Apache-2.0
