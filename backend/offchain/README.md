@@ -1,30 +1,45 @@
-# Off-Chain Service
+# ReverseRug Off-Chain Service
 
-This package contains weekly scheduling, payout calculation, Merkle generation, and root publication.
+The off-chain service is responsible for deterministic payout computation, epoch orchestration, and proof delivery.
 
-## Components
-- `jobs/weekly-distribution.ts`: weekly settlement pipeline (cron or one-shot run).
-- `lib/rpc.ts`: Solana RPC access, program and vault reads.
-- `lib/merkle.ts`: distribution list and Merkle tree generation.
-- `config/`: env loading and shared constants.
-- `types/`: shared data models.
+## Responsibilities
 
-## Pipeline
-1. Read participants from RPC and compute round totals.
-2. If participants are below 20: fixed fee plus equal refund plan.
-3. If participants are 20 or more: 10% fee, 50 USDC non-winner refund, and winner split (1 winner per 20 participants).
-4. Send fee transfer instruction, build Merkle tree, and publish root on-chain.
-5. Serve proof JSON through the API.
-6. Emit logs and alerts on failed transactions.
+- Read participant and state data from Solana RPC
+- Compute settlement allocations under protocol rules
+- Build Merkle tree and publish root on-chain
+- Serve proof payloads to frontend claim flow
+- Run scheduled weekly distribution jobs
 
-## Runtime requirements
-- Solana RPC endpoint
+## Key Modules
+
+- `jobs/weekly-distribution.ts`: settlement pipeline runner
+- `lib/rpc.ts`: chain read helpers and account decoding
+- `lib/merkle.ts`: payout list and tree generation
+- `config/`: runtime env parsing and config guards
+- `server/`: API layer for health, rounds, winners, and admin flows
+
+## Determinism and Safety
+
+- Payout logic is rule-driven and reproducible from chain state
+- Root publication happens after allocation generation
+- Admin actions are wallet allowlist controlled
+- Runtime configuration is env-based and production-safe when paired with secret management
+
+## Runtime Requirements
+
+- Solana RPC endpoint(s)
 - Program ID and token account addresses
-- Admin wallet public key(s)
+- Admin wallet allowlist
 - Domain/subdomain for API hosting
-- Oracle feed addresses if price verification is enabled
+- Optional oracle feed addresses for price checks
 
 ## Run
-- Copy `.env.example` to `.env` or `.env.devnet` based on your environment.
-- Install dependencies in `backend/offchain`.
-- Run `npm run build && npm run weekly` or trigger via cron.
+
+```bash
+cd backend/offchain
+npm install
+npm run build
+npm run weekly
+```
+
+For API mode, run the server command defined in `package.json`.

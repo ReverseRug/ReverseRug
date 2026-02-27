@@ -1,87 +1,76 @@
-# Reward Pool - Solana Program (Anchor)
+# ReverseRug On-Chain Program (Anchor)
 
-Weekly reward distribution smart contract for Solana.
+The on-chain program is the protocol's trust anchor. It stores canonical round state, validates privileged operations, and enforces claim safety.
 
-## Architecture
+## Program Responsibilities
 
-### State accounts
-- **GlobalState**: pool configuration, epoch metadata, Merkle root.
-- **Participant**: per-user deposit and eligibility state.
-- **ClaimRecord**: epoch-based claim tracking to prevent duplicate claims.
+- Track global protocol state (`GlobalState`)
+- Track per-user epoch participation (`Participant`)
+- Track claim execution by epoch (`ClaimRecord`)
+- Validate and process claim instructions against finalized Merkle root
 
-### Instructions
-1. **initialize**: creates and configures the pool.
-2. **deposit**: user deposits fixed **100 USDC** once per epoch.
-3. **distribute_fees**: admin routes fee split to dev and buyback accounts.
-4. **finalize_epoch**: admin writes Merkle root from off-chain computation.
-5. **claim**: user claims allocation using Merkle proof.
-6. **start_epoch**: starts next epoch and resets root state.
+## Instruction Set
 
-### Security model
-- No owner withdrawal path from vault.
-- Merkle proof verification (`keccak256`).
-- Epoch-based claim protection.
-- Admin authority checks on finalize/start instructions.
+1. `initialize`: configure protocol state
+2. `deposit`: accept fixed-entry user participation (`100 USDC`)
+3. `distribute_fees`: route fee split to configured token accounts
+4. `finalize_epoch`: publish Merkle root produced off-chain
+5. `claim`: verify proof and transfer claim amount
+6. `start_epoch`: advance to the next round
 
-## Setup
+## Security Model
+
+- No direct owner withdrawal instruction for vault funds
+- Proof-based claim authorization (`keccak256` Merkle verification)
+- Epoch-aware claim tracking to prevent duplicate redemption
+- Authority-gated finalize/start operations
+
+## Build and Test
 
 ```bash
 # Install Anchor CLI
 cargo install --git https://github.com/coral-xyz/anchor --tag v0.30.1 anchor-cli --locked
 
-# Dependencies
 cd backend/onchain
 npm install
 
 # Build
 anchor build
 
-# Test (local validator)
+# Local tests
 anchor test
-
-# Deploy (devnet)
-anchor deploy --provider.cluster devnet
 ```
 
-## Deployment
+## Deploy
 
-### Devnet
 ```bash
+# Example: devnet
 solana-keygen new -o ~/.config/solana/devnet-authority.json
 solana airdrop 2 -u devnet -k ~/.config/solana/devnet-authority.json
 anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/devnet-authority.json
 ```
 
-### Mainnet
 ```bash
-# Recommended: KMS/HSM-backed signer process
+# Example: mainnet (recommended signer process: KMS/HSM-backed)
 anchor deploy --provider.cluster mainnet --provider.wallet ~/.config/solana/mainnet-authority.json
 ```
 
-## IDL
+## IDL Workflow
 
-After deployment, `target/idl/reward_pool.json` is generated.
-Copy this IDL to the off-chain service and frontend clients.
+After deployment, `target/idl/reward_pool.json` is generated and should be distributed to off-chain and frontend clients.
 
 ```bash
-# Initial IDL publish
 anchor idl init --filepath target/idl/reward_pool.json <PROGRAM_ID>
-
-# IDL upgrade
 anchor idl upgrade --filepath target/idl/reward_pool.json <PROGRAM_ID>
 ```
 
-## Post-deploy updates
-- `Anchor.toml`: update program IDs per cluster.
-- `backend/offchain/.env*`: set `PROGRAM_ID`.
-- Frontend env: set `VITE_PROGRAM_ID`.
+## Integration Contract
 
-## Off-chain integration
-The off-chain service should:
-1. Read global state.
-2. Read eligible participants.
-3. Compute payouts.
-4. Generate Merkle tree.
-5. Send `finalize_epoch`.
-6. Serve proofs.
-7. Trigger `start_epoch` on schedule.
+The off-chain service is expected to:
+
+1. read protocol state and participants
+2. compute deterministic allocations
+3. generate Merkle tree and proofs
+4. submit `finalize_epoch`
+5. expose proofs for client claim flow
+6. trigger `start_epoch` on schedule
