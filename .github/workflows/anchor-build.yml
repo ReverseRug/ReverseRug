@@ -1,0 +1,63 @@
+name: Anchor Verifiable Build
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+  pull_request: {}
+
+jobs:
+  build:
+    name: Build onchain (verifiable)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev clang curl
+
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: backend/onchain/target
+          key: cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Anchor program
+        working-directory: backend/onchain
+        run: |
+          rustup toolchain list
+          rustc --version
+          cargo --version
+          # Use the nightly toolchain to build
+          cargo +nightly build --release --target-dir target
+
+
+      - name: Upload build artifacts (public-safe)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reward-pool-build
+          path: |
+            backend/onchain/target/deploy/reward_pool.so
+            backend/onchain/target/idl/reward_pool.json

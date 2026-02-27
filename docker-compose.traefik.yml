@@ -1,0 +1,118 @@
+# Production Docker Compose with Traefik Integration
+# Works with existing Coolify/Traefik setup
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend/offchain
+      dockerfile: Dockerfile
+    container_name: reverserug-api-prod
+    expose:
+      - "4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+      - ADMIN_ALLOWED_WALLET=YOUR_ADMIN_WALLET_1,YOUR_ADMIN_WALLET_2
+    volumes:
+      - /path/to/solana/authority.json:/root/.config/solana/authority.json:ro
+      - ./backend/offchain/proofs:/app/proofs
+    restart: unless-stopped
+    networks:
+      - reverserug-network
+      - coolify  # Connect to Coolify's Traefik network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      # HTTPS router
+      - "traefik.http.routers.reverserug-api.rule=Host(`yourdomain.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.reverserug-api.entrypoints=https"
+      - "traefik.http.routers.reverserug-api.tls=true"
+      - "traefik.http.routers.reverserug-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.reverserug-api.priority=100"
+      - "traefik.http.routers.reverserug-api.middlewares=reverserug-security-headers"
+      # HTTP router (redirect to HTTPS)
+      - "traefik.http.routers.reverserug-api-http.rule=Host(`yourdomain.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.reverserug-api-http.entrypoints=http"
+      - "traefik.http.routers.reverserug-api-http.middlewares=reverserug-api-redirect-https"
+      - "traefik.http.routers.reverserug-api-http.priority=100"
+      - "traefik.http.services.reverserug-api.loadbalancer.server.port=4000"
+      # Middleware: HTTP to HTTPS redirect for API
+      - "traefik.http.middlewares.reverserug-api-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.reverserug-api-redirect-https.redirectscheme.permanent=true"
+      # Alias middleware name used by existing proxy config
+      - "traefik.http.middlewares.reverserug-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.reverserug-redirect-https.redirectscheme.permanent=true"
+      # Security headers (shared)
+      - "traefik.http.middlewares.reverserug-security-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.framedeny=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.referrerpolicy=strict-origin-when-cross-origin"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.permissionspolicy=geolocation=(), microphone=(), camera=()"
+
+  frontend:
+    build:
+      context: ./ReverseRug-Front
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://yourdomain.com/api
+        - VITE_SOLANA_RPC=https://api.mainnet-beta.solana.com
+        - VITE_SOLANA_NETWORK=mainnet-beta
+        - VITE_LATE_JOIN_LOCK_SECONDS=86400
+        - VITE_PROGRAM_ID=YOUR_PROGRAM_ID
+        - VITE_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+        - VITE_ADMIN_WALLET=YOUR_ADMIN_WALLET_1,YOUR_ADMIN_WALLET_2
+    container_name: reverserug-frontend-prod
+    expose:
+      - "5173"
+    environment:
+      - VITE_API_URL=https://yourdomain.com/api
+      - VITE_SOLANA_RPC=https://api.mainnet-beta.solana.com
+      - VITE_SOLANA_NETWORK=mainnet-beta
+      - VITE_LATE_JOIN_LOCK_SECONDS=86400
+      - VITE_PROGRAM_ID=YOUR_PROGRAM_ID
+      - VITE_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+      - VITE_ADMIN_WALLET=YOUR_ADMIN_WALLET_1,YOUR_ADMIN_WALLET_2
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - reverserug-network
+      - coolify  # Connect to Coolify's Traefik network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      # HTTPS router
+      - "traefik.http.routers.reverserug-frontend.rule=Host(`yourdomain.com`) || Host(`www.yourdomain.com`)"
+      - "traefik.http.routers.reverserug-frontend.entrypoints=https"
+      - "traefik.http.routers.reverserug-frontend.tls=true"
+      - "traefik.http.routers.reverserug-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.reverserug-frontend.priority=10"
+      # HTTP router (redirect to HTTPS)
+      - "traefik.http.routers.reverserug-frontend-http.rule=Host(`yourdomain.com`) || Host(`www.yourdomain.com`)"
+      - "traefik.http.routers.reverserug-frontend-http.entrypoints=http"
+      - "traefik.http.routers.reverserug-frontend-http.middlewares=reverserug-frontend-redirect-https"
+      - "traefik.http.routers.reverserug-frontend-http.priority=10"
+      - "traefik.http.services.reverserug-frontend.loadbalancer.server.port=5173"
+      # Middleware: HTTP to HTTPS redirect for Frontend
+      - "traefik.http.middlewares.reverserug-frontend-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.reverserug-frontend-redirect-https.redirectscheme.permanent=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.framedeny=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.referrerpolicy=strict-origin-when-cross-origin"
+      - "traefik.http.middlewares.reverserug-security-headers.headers.permissionspolicy=geolocation=(), microphone=(), camera=()"
+      # Middleware: Redirect www to non-www
+      - "traefik.http.middlewares.reverserug-redirect-www.redirectregex.regex=^https://www.yourdomain.com/(.*)"
+      - "traefik.http.middlewares.reverserug-redirect-www.redirectregex.replacement=https://yourdomain.com/$${1}"
+      # Apply middlewares
+      - "traefik.http.routers.reverserug-frontend.middlewares=reverserug-redirect-www,reverserug-security-headers"
+
+networks:
+  reverserug-network:
+    driver: bridge
+  coolify:
+    external: true

@@ -1,0 +1,30 @@
+[package]
+name = "switchboard-v2"
+version = "0.1.23"
+edition = "2021"
+description = "A Rust library to interact with Switchboard V2 accounts."
+readme = "README.md"
+keywords = ["switchboard", "oracle", "solana"]
+homepage = "https://docs.switchboard.xyz"
+repository = "https://github.com/switchboard-xyz/sbv2-solana/tree/main/rust/switchboard-v2"
+license = "MIT"
+documentation = "https://docs.rs/switchboard-v2/"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "switchboard_v2"
+doctest = false
+
+[features]
+default = ["cpi"]
+no-entrypoint = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+anchor-lang = "~0.27.0"
+anchor-spl = "~0.27.0"
+rust_decimal = "=1.26.1"
+solana-program = "^1.13.5"
+bytemuck = "1.7.2"
+superslice = "1"
+spl-token = "3.5"

@@ -1,0 +1,19 @@
+[package]
+name = "reward-pool"
+version = "0.1.0"
+description = "Solana Weekly Reward Pool with Merkle Distribution"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "reward_pool"
+
+[features]
+no-entrypoint = []
+default = []
+
+[dependencies]
+solana-program = "1.14.29"
+borsh = "0.9.3"
+thiserror = "1.0"
+spl-token = { version = "3.5.0", features = ["no-entrypoint"] }

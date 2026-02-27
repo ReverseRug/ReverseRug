@@ -1,0 +1,36 @@
+# Global ignores
+node_modules/
+*.log
+.DS_Store
+dist/
+build/
+*.swp
+.idea/
+.vscode/
+*.sol.abi
+*.so~
+
+# Solana/Anchor specific (keep source, ignore build artifacts)
+/backend/onchain/target/
+/backend/offchain/dist/
+/backend/offchain/node_modules/
+/ReverseRug-Front/node_modules/
+/ReverseRug-Front/dist/
+
+# Env files (local secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.devnet.example
+
+# Keys (for safety)
+keys/*.json
+keys/*.pem
+backend/onchain/target/deploy/*-keypair.json
+!keys/*.example
+!keys/participants/
+
+# Temporary
+*.tmp
+/tmp/
